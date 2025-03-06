@@ -1,0 +1,3 @@
+2022-02-03 20:38:12,305 [INFO] django.utils.autoreload: Watching for file changes with StatReloader
+2022-02-03 20:38:37,762 [INFO] django.utils.autoreload: Watching for file changes with StatReloader
+2022-02-03 20:40:53,481 [INFO] django.utils.autoreload: C:\django-rest\MinisoCedis\MinisoCedis\settings.py changed, reloading.
