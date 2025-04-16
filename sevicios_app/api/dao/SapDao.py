@@ -7,8 +7,9 @@ from sevicios_app.vo.storageTemplate import StorageTemplate
 from sevicios_app.vo.precio import Precio
 from sevicios_app.vo.infoPedidoSinTr import InfoPedidoSinTr
 from sevicios_app.vo.pedidoSapPlaneacion import PedidoSapPlaneacion
+from sevicios_app.vo.stringOne import StringOne 
 
-logger = logging.getLogger('')
+logger = logging.getLogger(__name__) #New __name__
 
 class SAPDao():
 
@@ -512,3 +513,29 @@ class SAPDao():
         finally:
             if conexion!= None:
                 self.closeConexion(conexion)
+    
+    def getShopList(self):
+            try:
+                conexion=self.getConexion()
+                cursor=conexion.cursor()
+                tiendaList=[]
+                cursor.execute("""SELECT sap.CUSTOMER
+                                FROM OPENQUERY(
+                                    [HANADB_SAP_COMX],
+                                    'SELECT "WhsCode" AS CUSTOMER
+                                    FROM SBOMINISO.OWHS 
+                                    WHERE "WhsCode" LIKE ''T%'' 
+                                    ORDER BY "WhsCode"'
+                                ) sap
+                                """)
+                registros=cursor.fetchall()
+                for registro in registros:
+                    tienda=StringOne(registro[0])
+                    tiendaList.append(tienda)
+                return tiendaList
+            except Exception as exception:
+                logger.error(f"Se presento una incidencia al obtener los registros: {exception}")
+                raise exception
+            finally:
+                if conexion!= None:
+                    self.closeConexion(conexion)

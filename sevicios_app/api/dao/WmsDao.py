@@ -31,6 +31,8 @@ from sevicios_app.vo.shorpack import Shorpack
 from sevicios_app.vo.inventoryAvailableDaily import InventoryAvailableDaily
 from sevicios_app.vo.stringOne import StringOne
 from sevicios_app.vo.inventoryAvailableParams import InventoryAvailableParams
+from sevicios_app.vo.inventoryAvailableCategory import InventoryAvailableCategory
+from sevicios_app.vo.inventatoryAvailableFurniture import InventoryAvailableFurniture
 
 logger = logging.getLogger('')
 
@@ -1528,6 +1530,62 @@ class WMSDao():
                 inventoryAvailable=InventoryAvailableParams(registro[0], registro[1], registro[2], registro[3], registro[4], registro[5], registro[6], registro[7])
                 InventoryAvailableDailyList.append(inventoryAvailable)
             return InventoryAvailableDailyList
+        except Exception as exception:
+            logger.error(f"Se presento una incidencia al obtener los reistros: {exception}")
+            raise exception
+        finally:
+            if conexion!= None:
+                self.closeConexion(conexion)
+
+    
+    def getInventoryAvailableDailyCategory(self,date):
+        try:
+            conexion=self.getConexion()
+            cursor=conexion.cursor()
+            InventoryAvailableDailyList=[]
+            cursor.execute("select ivd.ITEM,i.ITEM_CATEGORY1,i.ITEM_CATEGORY2,i.ITEM_CATEGORY3,ivd.ON_HAND,ivd.IN_TRANSIT,ivd.ALLOCATED,ivd.SUSPENSE,ivd.REQUESTED,ivd.QUANTITY,ivd.REAL_AVAILABLE,CONVERT(varchar,ivd.DATE_TIME,103) " +
+                            " from INVENTORY_AVAILABLE_DAILY ivd " +
+                            " left join ITEM i on ivd.ITEM = i.ITEM " +
+                            " WHERE CONVERT(varchar,DATE_TIME,23) = ? ",date)
+            registros=cursor.fetchall()
+            for registro in registros:
+                inventoryAvailable=InventoryAvailableCategory(registro[0], registro[1], registro[2], registro[3], registro[4], registro[5], registro[6], registro[7],registro[8],registro[9], registro[10],registro[11])
+                InventoryAvailableDailyList.append(inventoryAvailable)
+            return InventoryAvailableDailyList
+        except Exception as exception:
+            logger.error(f"Se presento una incidencia al obtener los reistros: {exception}")
+            raise exception
+        finally:
+            if conexion!= None:
+                self.closeConexion(conexion)
+
+    def getInventoryAvailableFurniture(self,one=""):
+        try:
+            conexion=self.getConexion()
+            cursor=conexion.cursor()
+            InventoryAvailableFurnitureList=[]
+            # if one: one = " TOP 100 "                
+            url=f"""
+                    SELECT INV.ITEM, I.ITEM_CATEGORY1,I.ITEM_CATEGORY2,I.ITEM_CATEGORY3,SUM(INV.ON_HAND) ON_HAND, SUM(INV.IN_TRANSIT) IN_TRANSIT, SUM(INV.ALLOCATED) ALLOCATED, SUM(INV.SUSPENSE) SUSPENSE,
+                    ISNULL(PEN.REQUESTED, 0) REQUESTED, ISNULL(TRA.QUANTITY,0) QUANTITY,SUM(INV.ON_HAND) + SUM(INV.IN_TRANSIT) - SUM(INV.ALLOCATED) - SUM(INV.SUSPENSE) - 
+                    ISNULL(PEN.REQUESTED, 0) - ISNULL(TRA.QUANTITY,0) as TotalDisponible  FROM (select LI.ITEM, SUM(LI.ON_HAND_QTY) ON_HAND, 
+                    SUM(LI.IN_TRANSIT_QTY) IN_TRANSIT, 
+                    SUM(LI.ALLOCATED_QTY) ALLOCATED, SUM(LI.SUSPENSE_QTY) SUSPENSE FROM LOCATION LOC INNER JOIN LOCATION_INVENTORY LI ON LI.LOCATION=LOC.LOCATION
+                    WHERE LOC.LOCATING_ZONE IN ('L-Muebles LG','L-Muebles PS') 
+                    AND LI.INVENTORY_STS='Mobiliario Disponible' GROUP BY ITEM,LOC.LOCATION_TYPE) INV LEFT JOIN (select SD.ITEM, SUM(SD.REQUESTED_QTY) REQUESTED	from SHIPMENT_HEADER sh 
+                    inner join SHIPMENT_DETAIL SD ON SD.INTERNAL_SHIPMENT_NUM=SH.INTERNAL_SHIPMENT_NUM	where sh.TRAILING_STS in (100,200)	 AND SD.STATUS1<=200	GROUP BY SD.ITEM) PEN ON PEN.ITEM=INV.ITEM
+                    LEFT JOIN ITEM I ON INV.ITEM = I.ITEM
+                    LEFT JOIN (select ITEM, SUM(QUANTITY) QUANTITY from WORK_INSTRUCTION where INSTRUCTION_TYPE='Detail' AND FROM_LOC LIKE 'M%' AND FROM_LOC!='MAQ-OUT' AND WORK_TYPE LIKE 'Transferencia%'
+                    AND (TO_LOC LIKE'R-%A' OR TO_LOC LIKE 'R-%X' OR TO_LOC='P-%') GROUP BY ITEM) TRA ON TRA.ITEM=INV.ITEM 
+                    WHERE I.ITEM_CATEGORY1 IN ('ARTICULOS CONSUMIBLES','MATERIAL DECORATIVO')
+                    GROUP BY INV.ITEM,PEN.REQUESTED,TRA.QUANTITY,I.ITEM_CATEGORY1,I.ITEM_CATEGORY2,I.ITEM_CATEGORY3
+                """
+            cursor.execute(url)
+            registros=cursor.fetchall()
+            for registro in registros:
+                inventoryAvailable=InventoryAvailableFurniture(registro[0], registro[1], registro[2], registro[3], registro[4], registro[5], registro[6], registro[7],registro[8],registro[9],registro[10])
+                InventoryAvailableFurnitureList.append(inventoryAvailable)
+            return InventoryAvailableFurnitureList
         except Exception as exception:
             logger.error(f"Se presento una incidencia al obtener los reistros: {exception}")
             raise exception

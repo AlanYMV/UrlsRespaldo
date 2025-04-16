@@ -37,6 +37,9 @@ import time
 from sevicios_app.api.dao.UpdatePromotion import UpdatePromotion
 from io import BytesIO
 from sevicios_app.api.dao.ContainerServiceCol import ContainerServiceCol
+from sevicios_app.api.dao.WmsRed import WmsRed
+from sevicios_app.api.dao.reportTi import ReportTi
+from sevicios_app.api.dao.shopChina import ShopChina
 
 logger = logging.getLogger('')
 
@@ -5895,39 +5898,40 @@ def registrar_contenedores(request):
         try:
             print("Agregando contenedores...")
             file = request.FILES['file']
-            dataframe = pd.read_excel(file)
+            # dataframe = pd.read_excel(file)
+            dataframe = pd.read_excel(file, dtype={'CONTAINER_TYPE': str, 'DESCRIPTION': str})
 
-            # Cambiando tipo de datos
-            dataframe['CONTAINER_TYPE'] = dataframe['CONTAINER_TYPE'].astype(str)
-            dataframe['DESCRIPTION'] = dataframe['DESCRIPTION'].astype(str)
-            dataframe['CONTAINER_CLASS'] = dataframe['CONTAINER_CLASS'].astype(str)
-            dataframe['EMPTY_WEIGHT'] = dataframe['EMPTY_WEIGHT'].astype(float)
-            dataframe['WEIGHT_UM'] = dataframe['WEIGHT_UM'].astype(str)
-            dataframe['LENGTH'] = dataframe['LENGTH'].astype(float)
-            dataframe['WIDTH'] = dataframe['WIDTH'].astype(float)
-            dataframe['HEIGHT'] = dataframe['HEIGHT'].astype(float)
-            dataframe['ACTIVE'] = dataframe['ACTIVE'].astype(str)
-            dataframe['WEIGHT_TOLERANCE'] = dataframe['WEIGHT_TOLERANCE'].astype(float)
-            dataframe['MAXIMUM_WEIGHT'] = dataframe['MAXIMUM_WEIGHT'].astype(float)
+            dataframe['CONTAINER_TYPE'] = dataframe['CONTAINER_TYPE'].str.strip()
+            dataframe['DESCRIPTION'] = dataframe['DESCRIPTION'].str.strip()
 
+            # Validar columnas faltantes
             missing_columns = [col for col in expected_columns['add'] if col not in dataframe.columns]
             if missing_columns:
                 return JsonResponse({"error": f"Faltan las siguientes columnas: {', '.join(missing_columns)}"}, status=400)
 
-            validation_error = db_helper.validate_columns(dataframe, 'add', expected_columns)
-            if validation_error:
-                return JsonResponse({"error": validation_error}, status=400)
+            try:
+                dataframe['CONTAINER_TYPE'] = dataframe['CONTAINER_TYPE'].astype(str)
+                dataframe['DESCRIPTION'] = dataframe['DESCRIPTION'].astype(str)
+                dataframe['CONTAINER_CLASS'] = dataframe['CONTAINER_CLASS'].astype(str)
+                dataframe['EMPTY_WEIGHT'] = dataframe['EMPTY_WEIGHT'].astype(float)
+                dataframe['WEIGHT_UM'] = dataframe['WEIGHT_UM'].astype(str)
+                dataframe['LENGTH'] = dataframe['LENGTH'].astype(float)
+                dataframe['WIDTH'] = dataframe['WIDTH'].astype(float)
+                dataframe['HEIGHT'] = dataframe['HEIGHT'].astype(float)
+                dataframe['ACTIVE'] = dataframe['ACTIVE'].astype(str)
+                dataframe['WEIGHT_TOLERANCE'] = dataframe['WEIGHT_TOLERANCE'].astype(float)
+                dataframe['MAXIMUM_WEIGHT'] = dataframe['MAXIMUM_WEIGHT'].astype(float)
+            except Exception as e:
+                return JsonResponse({"error": f"Error al convertir tipos de datos: {str(e)}"}, status=400)
+
+            for col in ['EMPTY_WEIGHT', 'LENGTH', 'WIDTH', 'HEIGHT', 'WEIGHT_TOLERANCE', 'MAXIMUM_WEIGHT']:
+                if dataframe[col].isnull().any():
+                    return JsonResponse({"error": f"Columna {col} contiene valores nulos"}, status=400)
 
             data = dataframe.to_dict(orient='records')
 
             container_types = list(set(row['CONTAINER_TYPE'] for row in data))
             existing_containers = db_helper.check_existing_containers(container_types)
-
-            output = io.BytesIO()
-            workbook = xlsxwriter.Workbook(output)
-            worksheet = workbook.add_worksheet()
-            worksheet.write(0, 0, 'CONTAINER_TYPE')
-            worksheet.write(0, 1, 'Mensaje')
 
             values_to_insert = []
             row_status = []
@@ -5945,11 +5949,8 @@ def registrar_contenedores(request):
 
             insertion_result = db_helper.insert_containers(values_to_insert)
             if isinstance(insertion_result, str):
-                print("Error agregando contenedores")
                 return JsonResponse({"error": f"Error al insertar contenedores: {insertion_result}"}, status=500)
 
-            
-            # Verificar si todos los contenedores se insertaron correctamente
             for attempt in range(10):
                 inserted_containers = db_helper.check_existing_containers([row['CONTAINER_TYPE'] for row in data])
                 not_inserted = [row for row in data if row['CONTAINER_TYPE'] not in inserted_containers]
@@ -5959,13 +5960,19 @@ def registrar_contenedores(request):
                                                                 row['WEIGHT_UM'], row['LENGTH'], row['WIDTH'], row['HEIGHT'], row['ACTIVE'],
                                                                 row['WEIGHT_TOLERANCE'], row['MAXIMUM_WEIGHT']) for row in not_inserted])
                 if isinstance(insertion_result, str):
-                    print("Error agregando contenedores")
                     return JsonResponse({"error": f"Error al insertar contenedores: {insertion_result}"}, status=500)
 
             # Si después de 10 intentos aún hay contenedores no insertados, agregar mensaje de error
-            if not_inserted:
-                for row in not_inserted:
-                    row_status.append((row['CONTAINER_TYPE'], 'Error: No se pudo insertar después de 10 intentos'))
+            # if not_inserted:
+            #     for row in not_inserted:
+            #         row_status.append((row['CONTAINER_TYPE'], 'Error: No se pudo insertar después de 10 intentos'))
+
+            # Generar archivo Excel con resultados
+            output = io.BytesIO()
+            workbook = xlsxwriter.Workbook(output)
+            worksheet = workbook.add_worksheet()
+            worksheet.write(0, 0, 'CONTAINER_TYPE')
+            worksheet.write(0, 1, 'Mensaje')
 
             for idx, status in enumerate(row_status):
                 worksheet.write(idx + 1, 0, status[0])
@@ -5973,20 +5980,16 @@ def registrar_contenedores(request):
 
             workbook.close()
             output.seek(0)
-            if output:
-                print(output)
-                print("Contenedores agregados correctamente")
-            else:
-                print(output)
-            # return FileResponse(output, as_attachment=True, filename='resultado_inserciones.xlsx')
-        
+
             response = HttpResponse(output, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
             response['Content-Disposition'] = 'attachment; filename=resultado_inserciones.xlsx'
+            print("Contenedores insertados correctamente")
             return response
 
         except Exception as e:
             print("Error:", str(e))
             return JsonResponse({"error": str(e)}, status=500)
+			
 
 @csrf_exempt
 @api_view(['POST'])
@@ -6067,7 +6070,7 @@ def actualizar_unidad_de_medida(request):
             if validation_error:
                 return JsonResponse({"error": validation_error}, status=400)
             data = dataframe.to_dict(orient='records')
-            logger.info("Datos recibidos: %s", data)
+            # logger.info("Datos recibidos: %s", data)
 
             update_result = db_helper.actualizar_unidad_de_medida(data)
             if isinstance(update_result, str):
@@ -6094,7 +6097,7 @@ def actualizar_unidad_de_medida(request):
 
             workbook.close()
             output.seek(0)
-            logger.info("Archivo Excel creado con éxito")
+            # logger.info("Archivo Excel creado con éxito")
             print("Dimensiones actualizadas correctamente")
             # return FileResponse(output, as_attachment=True, filename='resultado_actualizaciones.xlsx')
         
@@ -6179,41 +6182,42 @@ db_helper_cl = ContainerServiceCl()
 def registrar_contenedores_cl(request):
     if request.method == 'POST':
         try:
-            print("Agregando contenedores...")
+            print("Agregando contenedores chile...")
             file = request.FILES['file']
-            dataframe = pd.read_excel(file)
+            # dataframe = pd.read_excel(file)
+            dataframe = pd.read_excel(file, dtype={'CONTAINER_TYPE': str, 'DESCRIPTION': str})
 
-            # Cambiando tipo de datos
-            dataframe['CONTAINER_TYPE'] = dataframe['CONTAINER_TYPE'].astype(str)
-            dataframe['DESCRIPTION'] = dataframe['DESCRIPTION'].astype(str)
-            dataframe['CONTAINER_CLASS'] = dataframe['CONTAINER_CLASS'].astype(str)
-            dataframe['EMPTY_WEIGHT'] = dataframe['EMPTY_WEIGHT'].astype(float)
-            dataframe['WEIGHT_UM'] = dataframe['WEIGHT_UM'].astype(str)
-            dataframe['LENGTH'] = dataframe['LENGTH'].astype(float)
-            dataframe['WIDTH'] = dataframe['WIDTH'].astype(float)
-            dataframe['HEIGHT'] = dataframe['HEIGHT'].astype(float)
-            dataframe['ACTIVE'] = dataframe['ACTIVE'].astype(str)
-            dataframe['WEIGHT_TOLERANCE'] = dataframe['WEIGHT_TOLERANCE'].astype(float)
-            dataframe['MAXIMUM_WEIGHT'] = dataframe['MAXIMUM_WEIGHT'].astype(float)
+            dataframe['CONTAINER_TYPE'] = dataframe['CONTAINER_TYPE'].str.strip()
+            dataframe['DESCRIPTION'] = dataframe['DESCRIPTION'].str.strip()
 
+            # Validar columnas faltantes
             missing_columns = [col for col in expected_columns['add'] if col not in dataframe.columns]
             if missing_columns:
                 return JsonResponse({"error": f"Faltan las siguientes columnas: {', '.join(missing_columns)}"}, status=400)
 
-            # validation_error = db_helper_cl.validate_columns(dataframe, 'add', expected_columns)
-            # if validation_error:
-            #     return JsonResponse({"error": validation_error}, status=400)
+            try:
+                dataframe['CONTAINER_TYPE'] = dataframe['CONTAINER_TYPE'].astype(str)
+                dataframe['DESCRIPTION'] = dataframe['DESCRIPTION'].astype(str)
+                dataframe['CONTAINER_CLASS'] = dataframe['CONTAINER_CLASS'].astype(str)
+                dataframe['EMPTY_WEIGHT'] = dataframe['EMPTY_WEIGHT'].astype(float)
+                dataframe['WEIGHT_UM'] = dataframe['WEIGHT_UM'].astype(str)
+                dataframe['LENGTH'] = dataframe['LENGTH'].astype(float)
+                dataframe['WIDTH'] = dataframe['WIDTH'].astype(float)
+                dataframe['HEIGHT'] = dataframe['HEIGHT'].astype(float)
+                dataframe['ACTIVE'] = dataframe['ACTIVE'].astype(str)
+                dataframe['WEIGHT_TOLERANCE'] = dataframe['WEIGHT_TOLERANCE'].astype(float)
+                dataframe['MAXIMUM_WEIGHT'] = dataframe['MAXIMUM_WEIGHT'].astype(float)
+            except Exception as e:
+                return JsonResponse({"error": f"Error al convertir tipos de datos: {str(e)}"}, status=400)
+
+            for col in ['EMPTY_WEIGHT', 'LENGTH', 'WIDTH', 'HEIGHT', 'WEIGHT_TOLERANCE', 'MAXIMUM_WEIGHT']:
+                if dataframe[col].isnull().any():
+                    return JsonResponse({"error": f"Columna {col} contiene valores nulos"}, status=400)
 
             data = dataframe.to_dict(orient='records')
 
             container_types = list(set(row['CONTAINER_TYPE'] for row in data))
             existing_containers = db_helper_cl.check_existing_containers(container_types)
-
-            output = io.BytesIO()
-            workbook = xlsxwriter.Workbook(output)
-            worksheet = workbook.add_worksheet()
-            worksheet.write(0, 0, 'CONTAINER_TYPE')
-            worksheet.write(0, 1, 'Mensaje')
 
             values_to_insert = []
             row_status = []
@@ -6231,26 +6235,30 @@ def registrar_contenedores_cl(request):
 
             insertion_result = db_helper_cl.insert_containers(values_to_insert)
             if isinstance(insertion_result, str):
-                print("Error agregando contenedores")
                 return JsonResponse({"error": f"Error al insertar contenedores: {insertion_result}"}, status=500)
 
-            # Verificar si todos los contenedores se insertaron correctamente
             for attempt in range(10):
-                inserted_containers = db_helper.check_existing_containers([row['CONTAINER_TYPE'] for row in data])
+                inserted_containers = db_helper_cl.check_existing_containers([row['CONTAINER_TYPE'] for row in data])
                 not_inserted = [row for row in data if row['CONTAINER_TYPE'] not in inserted_containers]
                 if not not_inserted:
                     break
-                insertion_result = db_helper.insert_containers([(row['CONTAINER_TYPE'], row['DESCRIPTION'], row['CONTAINER_CLASS'], row['EMPTY_WEIGHT'],
+                insertion_result = db_helper_cl.insert_containers([(row['CONTAINER_TYPE'], row['DESCRIPTION'], row['CONTAINER_CLASS'], row['EMPTY_WEIGHT'],
                                                                 row['WEIGHT_UM'], row['LENGTH'], row['WIDTH'], row['HEIGHT'], row['ACTIVE'],
                                                                 row['WEIGHT_TOLERANCE'], row['MAXIMUM_WEIGHT']) for row in not_inserted])
                 if isinstance(insertion_result, str):
-                    print("Error agregando contenedores")
                     return JsonResponse({"error": f"Error al insertar contenedores: {insertion_result}"}, status=500)
 
             # Si después de 10 intentos aún hay contenedores no insertados, agregar mensaje de error
-            if not_inserted:
-                for row in not_inserted:
-                    row_status.append((row['CONTAINER_TYPE'], 'Error: No se pudo insertar después de 10 intentos'))
+            # if not_inserted:
+            #     for row in not_inserted:
+            #         row_status.append((row['CONTAINER_TYPE'], 'Error: No se pudo insertar después de 10 intentos'))
+
+            # Generar archivo Excel con resultados
+            output = io.BytesIO()
+            workbook = xlsxwriter.Workbook(output)
+            worksheet = workbook.add_worksheet()
+            worksheet.write(0, 0, 'CONTAINER_TYPE')
+            worksheet.write(0, 1, 'Mensaje')
 
             for idx, status in enumerate(row_status):
                 worksheet.write(idx + 1, 0, status[0])
@@ -6258,15 +6266,10 @@ def registrar_contenedores_cl(request):
 
             workbook.close()
             output.seek(0)
-            if output:
-                print(output)
-                print("Contenedores agregados correctamente")
-            else:
-                print(output)
-            # return FileResponse(output, as_attachment=True, filename='resultado_inserciones.xlsx')
-        
+
             response = HttpResponse(output, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-            response['Content-Disposition'] = 'attachment; filename=resultado_inserciones.xlsx'
+            response['Content-Disposition'] = 'attachment; filename=resultado_inserciones_cl.xlsx'
+            print("Contenedores insertados correctamente Chile")
             return response
 
         except Exception as e:
@@ -6352,7 +6355,7 @@ def actualizar_unidad_de_medida_cl(request):
                 return JsonResponse({"error": validation_error}, status=400)
             
             data = dataframe.to_dict(orient='records')
-            logger.info("Datos recibidos: %s", data)
+            # logger.info("Datos recibidos: %s", data)
 
             # Actualizar unidad de medida
             update_result = db_helper_cl.actualizar_unidad_de_medida(data)
@@ -6381,7 +6384,7 @@ def actualizar_unidad_de_medida_cl(request):
 
             workbook.close()
             output.seek(0)
-            logger.info("Archivo Excel creado con éxito")
+            # logger.info("Archivo Excel creado con éxito")
             print("Dimensiones actualizadas correctamente")
 
             response = HttpResponse(output, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
@@ -6610,7 +6613,7 @@ def actualizar_unidad_de_medida_col(request):
                 return JsonResponse({"error": validation_error}, status=400)
             
             data = dataframe.to_dict(orient='records')
-            logger.info("Datos recibidos: %s", data)
+            # logger.info("Datos recibidos: %s", data)
 
             # Actualizar unidad de medida
             update_result = db_helper_col.actualizar_unidad_de_medida(data)
@@ -6639,7 +6642,7 @@ def actualizar_unidad_de_medida_col(request):
 
             workbook.close()
             output.seek(0)
-            logger.info("Archivo Excel creado con éxito")
+            # logger.info("Archivo Excel creado con éxito")
             print("Dimensiones actualizadas correctamente")
 
             response = HttpResponse(output, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
@@ -6762,3 +6765,294 @@ def getDownloadInventoryAParams(request,typeP,zone):
         print(exception)
         logger.error(f'Se presento una incidencia: {exception}')
         return Response({'Error': f'{exception}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+   
+@api_view(['GET'])
+def getDownloadInventoryAvailableCategory(request,date):
+    try:
+        date = str(date)
+        wmsDao=WMSDao()
+        output = io.BytesIO()
+
+        workbook = xlsxwriter.Workbook(output)
+        worksheet = workbook.add_worksheet()
+        worksheet.write(0, 0, 'Item')
+        worksheet.write(0, 1, 'Familia')
+        worksheet.write(0, 2, 'Sub Familia')
+        worksheet.write(0, 3, 'Sub Sub Familia')
+        worksheet.write(0, 4, 'On Hand')
+        worksheet.write(0, 5, 'In Transit')
+        worksheet.write(0, 6, 'Allocated')
+        worksheet.write(0, 7, 'Suspense')
+        worksheet.write(0, 8, 'Requested')
+        worksheet.write(0, 9, 'Quantity')
+        worksheet.write(0, 10, 'Real Disponible')
+        worksheet.write(0, 11, 'Fecha')
+        
+        inventoryList=wmsDao.getInventoryAvailableDailyCategory(date)
+        
+        row=1
+        for inventory in inventoryList:
+            worksheet.write(row, 0, inventory.item)            
+            worksheet.write(row, 1, inventory.family)
+            worksheet.write(row, 2, inventory.subfamily)
+            worksheet.write(row, 3, inventory.subsubfamily)
+            worksheet.write(row, 4, inventory.on_hand)
+            worksheet.write(row, 5, inventory.in_transit)
+            worksheet.write(row, 6, inventory.allocated)
+            worksheet.write(row, 7, inventory.suspense)
+            worksheet.write(row, 8, inventory.requested)
+            worksheet.write(row, 9, inventory.quantity)
+            worksheet.write(row, 10, inventory.real_available)
+            worksheet.write(row, 11, inventory.date_time)
+            row=row+1
+
+        workbook.close()
+
+        output.seek(0)
+
+        filename = 'Inventory_Available_Category_' + date + '.xlsx'
+        response = HttpResponse(output, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename=%s' % filename
+        print("Inventory available descargado")
+        return response
+    except Exception as exception:
+        print(exception)
+        logger.error(f'Se presento una incidencia: {exception}')
+        return Response({'Error': f'{exception}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+@api_view(['GET'])
+def getListTiendas(request):
+    try:
+        recepcion=SAPDao()
+        tiendaList=recepcion.getShopList()
+        serializer=OneValueSerializer(tiendaList, many=True)
+        return Response(serializer.data)
+    except Exception as exception:
+        logger.error(f'Se presento una incidencia: {exception}')
+        return Response({'Error': f'{exception}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+@api_view(['GET'])
+def patchRedireccion(request, pedido, shop):
+    try:
+        red = WmsRed()
+        mensaje = red.redirection(pedido, shop) 
+        return Response({'Mensaje': mensaje}, status=status.HTTP_200_OK) 
+    except Exception as exception:
+        logger.error(f'Se presento una incidencia: {exception}')
+        print(exception)
+        return Response({'Error': f'{exception}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+         
+@api_view(['GET'])
+def getBusRelevant(request):
+    try:
+        report=ReportTi()
+        ti=report.getBugsRelevant()
+        serializer=ReportBugsAvailableSerializer(ti, many=True)
+        return Response(serializer.data)
+    except Exception as exception:
+        logger.error(f'Se presento una incidencia: {exception}')
+        return Response({'Error': f'{exception}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+@api_view(['GET'])
+def getDeviceRepair(request):
+    try:
+        report=ReportTi()
+        ti=report.getDeviceRepair()
+        serializer=ReportDeviceRSerializer(ti, many=True)
+        return Response(serializer.data)
+    except Exception as exception:
+        logger.error(f'Se presento una incidencia: {exception}')
+        return Response({'Error': f'{exception}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+@api_view(['GET'])
+def getDeviceRepair(request):
+    try:
+        report=ReportTi()
+        ti=report.getDeviceRepair()
+        serializer=ReportDeviceRSerializer(ti, many=True)
+        return Response(serializer.data)
+    except Exception as exception:
+        logger.error(f'Se presento una incidencia: {exception}')
+        return Response({'Error': f'{exception}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+@api_view(['GET'])
+def getDownloadInventoryAvailableFurniture(request):
+    try:
+        wmsDao=WMSDao()
+        output = io.BytesIO()
+
+        workbook = xlsxwriter.Workbook(output)
+        worksheet = workbook.add_worksheet()
+        worksheet.write(0, 0, 'Item')
+        worksheet.write(0, 1, 'Familia')
+        worksheet.write(0, 2, 'Sub Familia')
+        worksheet.write(0, 3, 'Sub Sub Familia')
+        worksheet.write(0, 4, 'On Hand')
+        worksheet.write(0, 5, 'In Transit')
+        worksheet.write(0, 6, 'Allocated')
+        worksheet.write(0, 7, 'Suspense')
+        worksheet.write(0, 8, 'Requested')
+        worksheet.write(0, 9, 'Quantity')
+        worksheet.write(0, 10, 'Real Disponible')
+        
+        inventoryList=wmsDao.getInventoryAvailableFurniture()
+        
+        row=1
+        for inventory in inventoryList:
+            worksheet.write(row, 0, inventory.item)            
+            worksheet.write(row, 1, inventory.family)
+            worksheet.write(row, 2, inventory.subfamily)
+            worksheet.write(row, 3, inventory.subsubfamily)
+            worksheet.write(row, 4, inventory.on_hand)
+            worksheet.write(row, 5, inventory.in_transit)
+            worksheet.write(row, 6, inventory.allocated)
+            worksheet.write(row, 7, inventory.suspense)
+            worksheet.write(row, 8, inventory.requested)
+            worksheet.write(row, 9, inventory.quantity)
+            worksheet.write(row, 10, inventory.real_available)
+            row=row+1
+
+        workbook.close()
+
+        output.seek(0)
+
+        filename = 'Inventario_Disponible_Muebles.xlsx'
+        response = HttpResponse(output, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename=%s' % filename
+        print("Inventorio disponible muebles descargado")
+        return response
+    except Exception as exception:
+        print(exception)
+        logger.error(f'Se presento una incidencia: {exception}')
+        return Response({'Error': f'{exception}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+@api_view(['GET'])
+def getContainerPza(request,pedido):
+    try:
+        report=WmsRed()
+        ti=report.getContainerAndQty(pedido)
+        serializer=ContainerPzaSerializer(ti, many=True)
+        return Response(serializer.data)
+    except Exception as exception:
+        logger.error(f'Se presento una incidencia: {exception}')
+        return Response({'Error': f'{exception}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+def getComprasSemanales(request):
+    try:
+        from datetime import datetime
+
+        shopDao = ShopChina()
+        output = io.BytesIO()
+
+        workbook = xlsxwriter.Workbook(output)
+        worksheet = workbook.add_worksheet()
+
+        merge_format = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter',
+            'bold': True
+        })
+
+        current_week = datetime.now().isocalendar()[1]
+
+        worksheet.merge_range(0, 1, 0, 53, '2023', merge_format)
+        worksheet.merge_range(0, 54, 0, 106, '2024', merge_format)
+        worksheet.merge_range(0, 107, 0, 107 + current_week, '2025', merge_format)
+
+        worksheet.write(1, 0, 'SKU')
+        for year, start_col in [(2023, 1), (2024, 54), (2025, 107)]:
+            weeks = 53 if year != 2025 else current_week
+            for week in range(1, weeks + 1):
+                worksheet.write(1, start_col + week - 1, f'sem{week}')
+
+        shopList = shopDao.weekShop()
+
+        row = 2
+        for shop in shopList:
+            worksheet.write(row, 0, shop.sku)
+            for year, start_col in [(2023, 1), (2024, 54), (2025, 107)]:
+                weeks = 53 if year != 2025 else current_week
+                for week in range(1, weeks + 1):
+                    column = start_col + week - 1
+                    attribute = f'sem{week}_{year}'
+                    worksheet.write(row, column, getattr(shop, attribute, None))
+            row += 1
+
+        workbook.close()
+
+        output.seek(0)
+        print("Ventas semanales Mx descargado")
+        filename = 'VentasSemanalesMx.xlsx'
+        response = HttpResponse(output, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = f'attachment; filename={filename}'
+        return response
+    except Exception as exception:
+        logger.error(f'Se presento una incidencia: {exception}')
+        print(exception)
+        return Response({'Error': f'{exception}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+@api_view(['GET'])
+def getDownloadInventoryAvailableCL(request,date):
+    try:
+        date = str(date)
+        wmsDao=WMSCLDao()
+        output = io.BytesIO()
+
+        workbook = xlsxwriter.Workbook(output)
+        worksheet = workbook.add_worksheet()
+        worksheet.write(0, 0, 'Item')
+        worksheet.write(0, 1, 'Descripcion Item')
+        worksheet.write(0, 2, 'Disponible')
+        worksheet.write(0, 3, 'Existente')
+        worksheet.write(0, 4, 'Asignado')
+        worksheet.write(0, 5, 'En transito')
+        worksheet.write(0, 6, 'Suspendido')
+        worksheet.write(0, 7, 'Familia')
+        worksheet.write(0, 8, 'Sub Familia')
+        worksheet.write(0, 9, 'Sub Sub Familia')
+        worksheet.write(0, 10, 'Fecha')
+        
+        inventoryList=wmsDao.getInventoryAvailable(date)
+        
+        row=1
+        for inventory in inventoryList:
+            worksheet.write(row, 0, inventory.item)            
+            worksheet.write(row, 1, inventory.item_desc)
+            worksheet.write(row, 2, inventory.available)
+            worksheet.write(row, 3, inventory.on_hand)
+            worksheet.write(row, 4, inventory.allocated)
+            worksheet.write(row, 5, inventory.in_transit)
+            worksheet.write(row, 6, inventory.suspense)
+            worksheet.write(row, 7, inventory.family)
+            worksheet.write(row, 8, inventory.subfamily)
+            worksheet.write(row, 9, inventory.subsubfamily)
+            worksheet.write(row, 10, inventory.date_time)
+            row=row+1
+
+        workbook.close()
+
+        output.seek(0)
+
+        filename = 'Inventory_Available_CL_' + date + '.xlsx'
+        response = HttpResponse(output, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename=%s' % filename
+        print("Inventory available Chile descargado")
+        return response
+    except Exception as exception:
+        print(exception)
+        logger.error(f'Se presento una incidencia: {exception}')
+        return Response({'Error': f'{exception}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+       
+@api_view(['GET'])
+def getInventoryAvailableCL(request,date):
+    try:
+        wmsDao=WMSCLDao()
+        inventoryAvailableList=wmsDao.getInventoryAvailable(date,True)
+        serializer=InventoryAvailableCL(inventoryAvailableList, many=True)
+        return Response(serializer.data)
+    except Exception as exception:
+        logger.error(f'Se presento una incidencia: {exception}')
+        return Response({'Error': f'{exception}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    

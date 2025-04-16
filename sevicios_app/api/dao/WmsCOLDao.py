@@ -18,6 +18,7 @@ from sevicios_app.vo.transaccionPickPut import TransaccionPickPut
 from sevicios_app.vo.wave import Wave
 from sevicios_app.vo.splitCl import SplitCl
 from sevicios_app.vo.unitMesure import UnitMesure
+from sevicios_app.vo.inventoryAvailableCol import InventoryAvailableCol 
 
 logger = logging.getLogger('')
 
@@ -464,6 +465,149 @@ class WMSCOLDao():
                 inventario=Inventario(registro[0], registro[1], registro[2], registro[3], registro[4], registro[5], registro[6], registro[7], registro[8], registro[9], registro[10], registro[11], registro[12], registro[13], registro[14])
                 inventarioList.append(inventario)
             return inventarioList
+        except Exception as exception:
+            logger.error(f"Se presento una incidencia al obtener los reistros: {exception}")
+            raise exception
+        finally:
+            if conexion!= None:
+                self.closeConexion(conexion)
+
+    def getInventarioAvailableCol(self):
+        try:
+            conexion=self.getConexion()
+            cursor=conexion.cursor()
+            InventoryList=[]
+            
+            url =("""
+                            SELECT 
+                            LI.LOCATION [UBICACION],
+                            LI.ITEM [ARTICULO],                           
+                            LI.ITEM_DESC [DESCRIPCI�N],
+                            LI.INVENTORY_STS [ESTADO DE INVENTARIO], 
+                                                        
+                            CASE
+                                WHEN L.ALLOCATE_IN_TRANSIT = N'Y' THEN (
+                                    CASE
+                                        WHEN (
+                                            CASE
+                                                WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.ON_HAND_QTY != 0 AND LI.COMPANY IN ('CEDI MINISO COLOMBIA') THEN 1
+                                                WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.ON_HAND_QTY != 0 AND LI.COMPANY NOT IN ('CEDI MINISO COLOMBIA') THEN CONVERT (NUMERIC (13, 0), LI.ON_HAND_QTY)
+                                                ELSE CONVERT (NUMERIC (13, 0), LI.ON_HAND_QTY)
+                                            END + 
+                                            CASE
+                                                WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.IN_TRANSIT_QTY != 0 AND LI.COMPANY IN ('CEDI MINISO COLOMBIA') THEN 1
+                                                WHEN I.LOT_CONTROLLED = 'N' AND LI.IN_TRANSIT_QTY != 0 AND LI.COMPANY NOT IN ('CEDI MINISO COLOMBIA') THEN CONVERT (NUMERIC (13, 0), LI.IN_TRANSIT_QTY) 
+                                                ELSE CONVERT (NUMERIC (13, 0), LI.IN_TRANSIT_QTY)
+                                            END - 
+                                            (CASE
+                                                    WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.SUSPENSE_QTY != 0 AND LI.COMPANY IN ('CEDI MINISO COLOMBIA') THEN 1
+                                                    WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.SUSPENSE_QTY != 0 AND LI.COMPANY NOT IN ('CEDI MINISO COLOMBIA') THEN CONVERT (NUMERIC (13, 0), LI.SUSPENSE_QTY)
+                                                    ELSE CONVERT (NUMERIC (13, 0), LI.SUSPENSE_QTY)
+                                                END + 
+                                                CASE
+                                                    WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.ALLOCATED_QTY != 0 AND LI.COMPANY IN ('CEDI MINISO COLOMBIA') THEN 1
+                                                    WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.ALLOCATED_QTY != 0 AND LI.COMPANY NOT IN ('CEDI MINISO COLOMBIA') THEN CONVERT (NUMERIC (13, 0), LI.ALLOCATED_QTY)
+                                                    ELSE CONVERT (NUMERIC (13, 0), LI.ALLOCATED_QTY)
+                                                END)) >= 0 THEN (CASE
+                                                WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.ON_HAND_QTY != 0 AND LI.COMPANY IN ('CEDI MINISO COLOMBIA') THEN 1
+                                                WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.ON_HAND_QTY != 0 AND LI.COMPANY NOT IN ('CEDI MINISO COLOMBIA') THEN CONVERT (NUMERIC (13, 0), LI.ON_HAND_QTY)
+                                                ELSE CONVERT (NUMERIC (13, 0), LI.ON_HAND_QTY)
+                                            END + 
+                                            CASE
+                                                WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.IN_TRANSIT_QTY != 0 AND LI.COMPANY IN ('CEDI MINISO COLOMBIA') THEN 1
+                                                WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.IN_TRANSIT_QTY != 0 AND LI.COMPANY NOT IN ('CEDI MINISO COLOMBIA') THEN CONVERT (NUMERIC (13, 0), LI.IN_TRANSIT_QTY)
+                                                ELSE CONVERT (NUMERIC (13, 0), LI.IN_TRANSIT_QTY)
+                                            END - 
+                                            (CASE
+                                                    WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.SUSPENSE_QTY != 0 AND LI.COMPANY IN ('CEDI MINISO COLOMBIA') THEN 1
+                                                    WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.SUSPENSE_QTY != 0 AND LI.COMPANY NOT IN ('CEDI MINISO COLOMBIA') THEN CONVERT (NUMERIC (13, 0), LI.SUSPENSE_QTY)
+                                                    ELSE CONVERT (NUMERIC (13, 0), LI.SUSPENSE_QTY)
+                                                END + CASE
+                                                    WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.ALLOCATED_QTY != 0 AND LI.COMPANY IN ('CEDI MINISO COLOMBIA') THEN 1
+                                                    WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.ALLOCATED_QTY != 0 AND LI.COMPANY NOT IN ('CEDI MINISO COLOMBIA') THEN CONVERT (NUMERIC (13, 0), LI.ALLOCATED_QTY)
+                                                    ELSE CONVERT (NUMERIC (13, 0), LI.ALLOCATED_QTY)
+                                                END))
+                                        ELSE 0
+                                    END)
+                                WHEN (CASE
+                                        WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.ON_HAND_QTY != 0 AND LI.COMPANY IN ('CEDI MINISO COLOMBIA') THEN 1
+                                        WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.ON_HAND_QTY != 0 AND LI.COMPANY NOT IN ('CEDI MINISO COLOMBIA') THEN CONVERT (NUMERIC (13, 0), LI.ON_HAND_QTY)
+                                        ELSE CONVERT (NUMERIC (13, 0), LI.ON_HAND_QTY)
+                                    END - 
+                                    (CASE
+                                            WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.SUSPENSE_QTY != 0 AND LI.COMPANY IN ('CEDI MINISO COLOMBIA') THEN 1
+                                            WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.SUSPENSE_QTY != 0 AND LI.COMPANY NOT IN ('CEDI MINISO COLOMBIA') THEN CONVERT (NUMERIC (13, 0), LI.SUSPENSE_QTY)
+                                            ELSE CONVERT (NUMERIC (13, 0), LI.SUSPENSE_QTY)
+                                        END + CASE
+                                            WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.ALLOCATED_QTY != 0 AND LI.COMPANY IN ('CEDI MINISO COLOMBIA') THEN 1
+                                            WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.ALLOCATED_QTY != 0 AND LI.COMPANY NOT IN ('CEDI MINISO COLOMBIA') THEN CONVERT (NUMERIC (13, 0), LI.ALLOCATED_QTY)
+                                            ELSE CONVERT (NUMERIC (13, 0), LI.ALLOCATED_QTY)
+                                        END
+                                    )) >= 0 THEN (CASE
+                                        WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.ON_HAND_QTY != 0 AND LI.COMPANY IN ('CEDI MINISO COLOMBIA') THEN 1
+                                        WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.ON_HAND_QTY != 0 AND LI.COMPANY NOT IN ('CEDI MINISO COLOMBIA') THEN CONVERT (NUMERIC (13, 0), LI.ON_HAND_QTY)
+                                        ELSE CONVERT (NUMERIC (13, 0), LI.ON_HAND_QTY)
+                                    END - (
+                                        CASE
+                                            WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.SUSPENSE_QTY != 0 AND LI.COMPANY IN ('CEDI MINISO COLOMBIA') THEN 1
+                                            WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.SUSPENSE_QTY != 0 AND LI.COMPANY NOT IN ('CEDI MINISO COLOMBIA') THEN CONVERT (NUMERIC (13, 0), LI.SUSPENSE_QTY)
+                                            ELSE CONVERT (NUMERIC (13, 0), LI.SUSPENSE_QTY)
+                                        END + CASE
+                                            WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.ALLOCATED_QTY != 0 AND LI.COMPANY IN ('CEDI MINISO COLOMBIA') THEN 1
+                                            WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.ALLOCATED_QTY != 0 AND LI.COMPANY NOT IN ('CEDI MINISO COLOMBIA') THEN CONVERT (NUMERIC (13, 0), LI.ALLOCATED_QTY)
+                                            ELSE CONVERT (NUMERIC (13, 0), LI.ALLOCATED_QTY)
+                                        END))
+                                ELSE 0
+                            END AS AV,
+                            CASE
+                                WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.ON_HAND_QTY != 0 AND LI.COMPANY IN ('CEDI MINISO COLOMBIA') THEN 1
+                                WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.ON_HAND_QTY != 0 AND LI.COMPANY NOT IN ('CEDI MINISO COLOMBIA') THEN CONVERT (NUMERIC (13, 0), LI.ON_HAND_QTY)
+                                ELSE CONVERT (NUMERIC (13, 0), LI.ON_HAND_QTY)
+                            END [OH],
+                            CASE
+                                WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.IN_TRANSIT_QTY != 0 AND LI.COMPANY IN ('CEDI MINISO COLOMBIA') THEN 1
+                                WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.IN_TRANSIT_QTY != 0 AND LI.COMPANY NOT IN ('CEDI MINISO COLOMBIA') THEN CONVERT (NUMERIC (13, 0), LI.IN_TRANSIT_QTY)
+                                ELSE CONVERT (NUMERIC (13, 0), LI.IN_TRANSIT_QTY)
+                            END [IT],
+                            CASE
+                                WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.ALLOCATED_QTY != 0 AND LI.COMPANY IN ('CEDI MINISO COLOMBIA') THEN 1
+                                WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.ALLOCATED_QTY != 0 AND LI.COMPANY NOT IN ('CEDI MINISO COLOMBIA') THEN CONVERT (NUMERIC (13, 0), LI.ALLOCATED_QTY)
+                                ELSE CONVERT (NUMERIC (13, 0), LI.ALLOCATED_QTY)
+                            END [AL],
+                            CASE
+                                WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.SUSPENSE_QTY != 0 AND LI.COMPANY IN ('CEDI MINISO COLOMBIA') THEN 1
+                                WHEN I.LOT_CONTROLLED = 'N' AND (I.SERIAL_NUM_TEMPLATE IS NOT NULL OR SN.SERIAL_NUMBER IS NOT NULL) AND LI.SUSPENSE_QTY != 0 AND LI.COMPANY NOT IN ('CEDI MINISO COLOMBIA') THEN CONVERT (NUMERIC (13, 0), LI.SUSPENSE_QTY)
+                                ELSE CONVERT (NUMERIC (13, 0), LI.SUSPENSE_QTY)
+                            END [SU],                          
+                                ISNULL (LI.LOT,'') [LOT]
+                            ,ISNULL (LI.LOGISTICS_UNIT,'') [LPN]
+                            ,ISNULL (LIA.LOC_INV_ATTRIBUTE1,'') [DTM/FMM-ENTRADA]
+                            ,ISNULL (LIA.LOC_INV_ATTRIBUTE2,'') [DTM/FMM-SALIDA]
+                            ,CONVERT(DATE,LI.EXPIRATION_DATE) [FECHA VENCIMIENTO]
+                            FROM DBO.LOCATION_INVENTORY LI  WITH(NOLOCK)      
+                            INNER JOIN DBO.ITEM I  WITH(NOLOCK) ON LI.ITEM = I.ITEM                         
+                            LEFT JOIN DBO.LOCATION_INVENTORY_ATTRIBUTES LIA  WITH(NOLOCK) ON LI.LOC_INV_ATTRIBUTES_ID = LIA.OBJECT_ID                            
+                            LEFT JOIN DBO.SERIAL_NUMBER SN WITH(NOLOCK) ON SN.LOC_INV_NUM = LI.INTERNAL_LOCATION_INV                      
+                            INNER JOIN DBO.LOCATION L WITH(NOLOCK) ON L.LOCATION = LI.LOCATION AND L.WAREHOUSE = LI.WAREHOUSE   
+                            WHERE
+                                (
+                                    ON_HAND_QTY > 0
+                                    OR ALLOCATED_QTY > 0
+                                    OR IN_TRANSIT_QTY > 0
+                                    OR SUSPENSE_QTY > 0
+                                ) 
+                                and LI.INVENTORY_STS IN ('CEN-L-LIBRE UTILIZACION','CEN-TR-LIBRE')
+                                AND (LI.LOCATION NOT LIKE 'AA-1%' OR LI.LOCATION NOT LIKE 'AB-1%' OR LI.LOCATION NOT LIKE  'X-1%' OR LI.LOCATION NOT LIKE 'Y-1%' OR LI.LOCATION NOT LIKE 'Z-1%' 
+                                OR LI.LOCATION NOT LIKE 'AY%' OR LI.LOCATION NOT LIKE 'CONAUD%'OR LI.LOCATION NOT LIKE 'CV%'OR LI.LOCATION NOT LIKE 'EC%'OR LI.LOCATION NOT LIKE 'ECO%' OR LI.LOCATION NOT LIKE 'LUZ%'OR LI.LOCATION NOT LIKE 'MAQ%'
+                                OR LI.LOCATION NOT LIKE 'REA%'OR LI.LOCATION NOT LIKE 'REF%' OR LI.LOCATION NOT LIKE 'YEI%')
+                            ORDER BY
+                                LI.LOCATION ASC                            
+                            """)
+            registros=cursor.fetchall()
+            for registro in registros:
+                inventory=InventoryAvailableCol(registro[0], registro[1], registro[2],registro[3], registro[4], registro[5],registro[6], registro[7], registro[8],registro[9], registro[10], registro[11],registro[12],registro[13])
+                InventoryList.append(inventory)
+            return InventoryList
         except Exception as exception:
             logger.error(f"Se presento una incidencia al obtener los reistros: {exception}")
             raise exception

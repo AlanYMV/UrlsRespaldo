@@ -105,7 +105,7 @@ class ContainerServiceCl:
                 cursor.executemany(sql_insert, sub_batch)
                 conexion.commit()
 
-            logger.info("Batch insert realizado correctamente.")
+            # logger.info("Batch insert realizado correctamente.")
             return True
         except Exception as e:
             logger.error(f"Error al realizar el batch insert: {e}")
@@ -123,7 +123,7 @@ class ContainerServiceCl:
             sql_delete = f"DELETE FROM CONTAINER_TYPE WHERE CONTAINER_TYPE in {tuple(container_types)}"
             cursor.execute(sql_delete)
             conexion.commit()
-            logger.info("Eliminaciones realizadas con éxito")
+            # logger.info("Eliminaciones realizadas con éxito")
             return True
         except Exception as e:
             logger.error(f"Error al eliminar en bloque: {e}")
@@ -157,7 +157,7 @@ class ContainerServiceCl:
                 cursor.executemany(sql_update, sub_batch)
 
             conexion.commit()
-            logger.info("Actualizaciones realizadas con éxito")
+            # logger.info("Actualizaciones realizadas con éxito")
             return True
         except Exception as e:
             logger.error(f"Error al actualizar en bloque: {e}")

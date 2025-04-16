@@ -2752,3 +2752,41 @@ Original exception text was: 'tuple' object has no attribute 'identifier'.
 2025-02-28 16:18:20,208 [ERROR] - Se presento una incidencia: 'pyodbc.Cursor' object attribute 'execute' is read-only
 2025-02-28 16:19:31,035 [ERROR] - Se presento una incidencia al obtener los reistros: 'pyodbc.Cursor' object attribute 'execute' is read-only
 2025-02-28 16:19:31,097 [ERROR] - Se presento una incidencia: 'pyodbc.Cursor' object attribute 'execute' is read-only
+2025-03-12 14:09:00,576 [ERROR] - Error al actualizar en bloque: function takes exactly 2 arguments (14 given)
+2025-03-12 14:15:11,820 [ERROR] - Error al actualizar en bloque: function takes exactly 2 arguments (14 given)
+2025-03-21 10:16:28,363 [ERROR] - Error al verificar promociones: ('08S01', '[08S01] [Microsoft][ODBC Driver 17 for SQL Server]TCP Provider: Se produjo un error durante el intento de conexión ya que la parte conectada no respondió adecuadamente tras un periodo de tiempo, o bien se produjo un error en la conexión establecida ya que el host conectado no ha podido responder.\r\n (10060) (SQLExecDirectW); [08S01] [Microsoft][ODBC Driver 17 for SQL Server]Communication link failure (10060)')
+2025-03-24 12:44:13,537 [ERROR] - Error al actualizar en bloque: 400 Client Error: Bad Request for url: https://192.168.84.182:50000/b1s/v2/InventoryTransferRequests(753)
+2025-03-24 12:44:37,797 [ERROR] - Error al actualizar en bloque: 400 Client Error: Bad Request for url: https://192.168.84.182:50000/b1s/v2/InventoryTransferRequests(753)
+2025-03-24 12:50:33,517 [ERROR] - Error al actualizar en bloque: 400 Client Error: Bad Request for url: https://192.168.84.182:50000/b1s/v2/InventoryTransferRequests(753)
+2025-03-25 15:41:23,511 [ERROR] - Se presento una incidencia al obtener los reistros: InventoryAvailableFurniture.__init__() missing 2 required positional arguments: 'quantity' and 'real_available'
+2025-03-25 15:41:23,637 [ERROR] - Se presento una incidencia: InventoryAvailableFurniture.__init__() missing 2 required positional arguments: 'quantity' and 'real_available'
+2025-03-26 11:21:36,932 [ERROR] - Error al actualizar en bloque: 400 Client Error: Bad Request for url: https://192.168.84.182:50000/b1s/v2/InventoryTransferRequests(763)
+2025-03-26 11:24:56,563 [ERROR] - Error al actualizar en bloque: 400 Client Error: Bad Request for url: https://192.168.84.182:50000/b1s/v2/InventoryTransferRequests(763)
+2025-03-26 11:25:34,527 [ERROR] - Error al actualizar en bloque: 400 Client Error: Bad Request for url: https://192.168.84.182:50000/b1s/v2/InventoryTransferRequests(763)
+2025-03-26 11:27:44,584 [ERROR] - Error al actualizar en bloque: 400 Client Error: Bad Request for url: https://192.168.84.182:50000/b1s/v2/InventoryTransferRequests(763)
+2025-03-26 11:32:43,592 [ERROR] - Error al actualizar en bloque: 400 Client Error: Bad Request for url: https://192.168.84.182:50000/b1s/v2/InventoryTransferRequests(763)
+2025-03-26 11:34:33,679 [ERROR] - Error al actualizar en bloque: 400 Client Error: Bad Request for url: https://192.168.84.182:50000/b1s/v2/InventoryTransferRequests(763)
+2025-03-26 11:42:39,334 [ERROR] - Error al actualizar en bloque: 400 Client Error: Bad Request for url: https://192.168.84.182:50000/b1s/v2/InventoryTransferRequests(763)
+2025-03-26 12:09:33,004 [ERROR] - Error al actualizar en bloque: 400 Client Error: Bad Request for url: https://192.168.84.182:50000/b1s/v2/InventoryTransferRequests(763)
+2025-03-26 12:28:55,579 [ERROR] - Error al actualizar en bloque: 400 Client Error: Bad Request for url: https://192.168.84.182:50000/b1s/v2/InventoryTransferRequests(763)
+2025-03-26 12:51:36,853 [ERROR] - Error al actualizar en bloque: 400 Client Error: Bad Request for url: https://192.168.84.182:50000/b1s/v2/InventoryTransferRequests(763)
+2025-03-26 12:55:12,256 [ERROR] - Error al actualizar en bloque: 400 Client Error: Bad Request for url: https://192.168.84.182:50000/b1s/v2/InventoryTransferRequests(763)
+2025-03-26 12:55:55,407 [ERROR] - Error al actualizar en bloque: 400 Client Error: Bad Request for url: https://192.168.84.182:50000/b1s/v2/InventoryTransferRequests(763)
+2025-03-26 12:56:27,312 [ERROR] - Error al actualizar en bloque: 400 Client Error: Bad Request for url: https://192.168.84.182:50000/b1s/v2/InventoryTransferRequests(763)
+2025-04-01 12:15:49,787 [ERROR] - Se presento una incidencia: Got AttributeError when attempting to get a value for field `container` on serializer `ContainerPzaSerializer`.
+The serializer field might be named incorrectly and not match any attribute or key on the `int` instance.
+Original exception text was: 'int' object has no attribute 'container'.
+2025-04-01 12:16:58,613 [ERROR] - Se presento una incidencia: Got AttributeError when attempting to get a value for field `container` on serializer `ContainerPzaSerializer`.
+The serializer field might be named incorrectly and not match any attribute or key on the `int` instance.
+Original exception text was: 'int' object has no attribute 'container'.
+2025-04-10 09:41:36,574 [ERROR] - Se presento una incidencia: Unsupported type <class 'tuple'> in write()
+2025-04-10 09:42:40,632 [ERROR] - Se presento una incidencia: Unsupported type <class 'tuple'> in write()
+2025-04-10 09:51:32,893 [ERROR] - Se presento una incidencia al obtener los reistros: ('42000', "[42000] [Microsoft][ODBC SQL Server Driver][SQL Server]'SNULL' no es un nombre de función integrada reconocido. (195) (SQLExecDirectW); [42000] [Microsoft][ODBC SQL Server Driver][SQL Server]Sintaxis incorrecta cerca de 'tres'. (102); [42000] [Microsoft][ODBC SQL Server Driver][SQL Server]Sintaxis incorrecta cerca de 'cuatro'. (102); [42000] [Microsoft][ODBC SQL Server Driver][SQL Server]Sintaxis incorrecta cerca de 'cinco'. (102)")
+2025-04-10 09:51:32,939 [ERROR] - Se presento una incidencia: ('42000', "[42000] [Microsoft][ODBC SQL Server Driver][SQL Server]'SNULL' no es un nombre de función integrada reconocido. (195) (SQLExecDirectW); [42000] [Microsoft][ODBC SQL Server Driver][SQL Server]Sintaxis incorrecta cerca de 'tres'. (102); [42000] [Microsoft][ODBC SQL Server Driver][SQL Server]Sintaxis incorrecta cerca de 'cuatro'. (102); [42000] [Microsoft][ODBC SQL Server Driver][SQL Server]Sintaxis incorrecta cerca de 'cinco'. (102)")
+2025-04-10 09:53:06,481 [ERROR] - Se presento una incidencia: Unsupported type <class 'tuple'> in write()
+2025-04-10 10:14:51,743 [ERROR] - Se presento una incidencia: Unsupported type <class 'tuple'> in write()
+2025-04-10 10:58:28,492 [ERROR] - Se presento una incidencia: Unsupported type <class 'tuple'> in write()
+2025-04-10 11:01:14,856 [ERROR] - Se presento una incidencia: Unsupported type <class 'tuple'> in write()
+2025-04-14 16:15:40,902 [ERROR] - Se presento una incidencia: Got AttributeError when attempting to get a value for field `item_desc` on serializer `InventoryAvailableCL`.
+The serializer field might be named incorrectly and not match any attribute or key on the `InventoryAvailableDaily` instance.
+Original exception text was: 'InventoryAvailableDaily' object has no attribute 'item_desc'.

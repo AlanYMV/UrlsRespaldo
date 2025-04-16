@@ -22,6 +22,7 @@ from sevicios_app.vo.porcentaje import Porcentaje
 from sevicios_app.vo.contenedorQc import ContenedorQc
 from sevicios_app.vo.itemcontenedorqc import ItemContenedorQc
 from sevicios_app.vo.LocationItem import LocationItem
+from sevicios_app.vo.InventoryAvailableCL import  InventoryAvailableCL
 
 logger = logging.getLogger('')
 
@@ -632,3 +633,24 @@ class WMSCLDao():
             return str(e)
         finally:
             self.closeConexion(conexion)
+        
+    def getInventoryAvailable(self,date,top = False):
+        try:
+            conexion=self.getConexion()
+            cursor=conexion.cursor()
+            InventoryAvailableDailyList=[]
+            if top:
+                cursor.execute("select top 100 ITEM,ITEM_DESC,AVAILABLE,ON_HAND,ALLOCATED,IN_TRANSIT,SUSPENSE,FAMILY,SUBFAMILY,SUBSUBFAMILY,CONVERT(varchar,DATE_TIME,23) from INVENTORY_AVAILABLE_DAILY  WHERE CONVERT(varchar,DATE_TIME,23) = ? ORDER BY DATE_TIME DESC ",date)
+            else:
+                cursor.execute("select 	ITEM,ITEM_DESC,AVAILABLE,ON_HAND,ALLOCATED,IN_TRANSIT,SUSPENSE,FAMILY,SUBFAMILY,SUBSUBFAMILY,CONVERT(varchar,DATE_TIME,23) from INVENTORY_AVAILABLE_DAILY  WHERE CONVERT(varchar,DATE_TIME,23) = ?",date)
+            registros=cursor.fetchall()
+            for registro in registros:
+                inventoryAvailable=InventoryAvailableCL(registro[0], registro[1], registro[2], registro[3], registro[4], registro[5], registro[6], registro[7],registro[8],registro[9], registro[10])
+                InventoryAvailableDailyList.append(inventoryAvailable)
+            return InventoryAvailableDailyList
+        except Exception as exception:
+            logger.error(f"Se presento una incidencia al obtener los reistros: {exception}")
+            raise exception
+        finally:
+            if conexion!= None:
+                self.closeConexion(conexion)

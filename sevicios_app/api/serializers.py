@@ -686,4 +686,34 @@ class InventoryAvailable(serializers.Serializer):
         date_time=serializers.CharField()
 
 class OneValueSerializer(serializers.Serializer):
-        value=serializers.CharField()
+        value=serializers.CharField()    
+    
+class ReportBugsAvailableSerializer(serializers.Serializer):
+        description=serializers.CharField()
+        status=serializers.CharField()
+        comments=serializers.CharField()
+        
+class ReportDeviceRSerializer(serializers.Serializer):
+        total_devices=serializers.CharField()
+        location=serializers.CharField()
+        status=serializers.CharField()
+        estimated_date=serializers.CharField()
+        comments=serializers.CharField()
+
+class ContainerPzaSerializer(serializers.Serializer):
+        container = serializers.CharField()
+        pza = serializers.CharField()
+        tda = serializers.CharField()
+        
+class InventoryAvailableCL(serializers.Serializer):
+        item=serializers.CharField()
+        item_desc=serializers.CharField()
+        available=serializers.CharField()
+        on_hand=serializers.CharField()
+        allocated=serializers.CharField()
+        in_transit=serializers.CharField()
+        suspense=serializers.CharField()
+        family=serializers.CharField()
+        subfamily=serializers.CharField()
+        subsubfamily=serializers.CharField()
+        date_time=serializers.CharField()

@@ -12,6 +12,7 @@ from sevicios_app.vo.tiendaCorreo import TiendaCorreo
 from sevicios_app.vo.confirmationPending import ConfirmationPending
 from sevicios_app.vo.auditoriaTienda import AuditoriaTienda
 from sevicios_app.vo.skuPriority import SkuPriority
+from sevicios_app.vo.stringOne import StringOne
 
 logger = logging.getLogger('')
 
@@ -508,6 +509,24 @@ class RecepcionTiendaDao():
                     skuP=SkuPriority(registro[0], registro[1])
                     skuPList.append(skuP)
                 return skuPList
+            except Exception as exception:
+                logger.error(f"Se presento una incidencia al obtener los registros: {exception}")
+                raise exception
+            finally:
+                if conexion!= None:
+                    self.closeConexion(conexion)
+
+    def getShopList(self):
+            try:
+                conexion=self.getConexion()
+                cursor=conexion.cursor()
+                tiendaList=[]
+                cursor.execute("select distinct ID from TIENDA where ID like 'T%'")
+                registros=cursor.fetchall()
+                for registro in registros:
+                    tienda=StringOne(registro[0])
+                    tiendaList.append(tienda)
+                return tiendaList
             except Exception as exception:
                 logger.error(f"Se presento una incidencia al obtener los registros: {exception}")
                 raise exception
